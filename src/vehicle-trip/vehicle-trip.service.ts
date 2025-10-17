@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVehicleTripDto } from './dto/create-vehicle-trip.dto';
+import { CarbonCreditService } from '../carbon-credit/carbon-credit.service';
 
 @Injectable()
 export class VehicleTripService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private carbonCreditService: CarbonCreditService,
+  ) {}
 
   async createTrip(ownerId: number, dto: CreateVehicleTripDto) {
     // Nếu client không gửi co2SavedKg, tính theo công thức rule-based
@@ -21,9 +25,17 @@ export class VehicleTripService {
         endLocation: dto.endLocation,
         distanceKm: dto.distanceKm,
         energyUsedKWh: dto.energyUsedKWh,
-        co2SavedKg,
+        co2SavedKg: co2SavedKg!,
+        date: new Date(),
       },
     });
+
+    // Ghi nhận tín chỉ carbon
+    await this.carbonCreditService.recordCredit(
+      ownerId,
+      trip.id,
+      co2SavedKg!,
+    );
 
     return trip;
   }
