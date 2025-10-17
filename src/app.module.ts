@@ -5,8 +5,9 @@ import { AuthModule } from './auth/auth.module';
 import { VehicleTripModule } from './vehicle-trip/vehicle-trip.module';
 import { CarbonCreditModule } from './carbon-credit/carbon-credit.module';
 import { CarbonWalletModule } from './carbon-wallet/carbon-wallet.module';
+import { CarbonMarketModule } from './carbon-market/carbon-market.module';
 
 @Module({
-  imports: [VehicleTripModule, AuthModule, UserModule, PrismaModule, CarbonCreditModule, CarbonWalletModule],
+  imports: [VehicleTripModule, AuthModule, UserModule, PrismaModule, CarbonCreditModule, CarbonWalletModule, CarbonMarketModule],
 })
 export class AppModule {}
