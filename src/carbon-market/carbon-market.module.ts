@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CarbonMarketService } from './carbon-market.service';
 import { CarbonMarketController } from './carbon-market.controller';
 
 @Module({
-  providers: [CarbonMarketService],
-  controllers: [CarbonMarketController]
+  imports: [],
+  controllers: [CarbonMarketController],
+  providers: [CarbonMarketService, PrismaService],
 })
 export class CarbonMarketModule {}

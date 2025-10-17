@@ -1,8 +1,11 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CarbonMarketService {
+  private readonly logger = new Logger(CarbonMarketService.name);
+
   constructor(private prisma: PrismaService) {}
 
   // 🏷️ Niêm yết fixed-price
@@ -182,5 +185,49 @@ export class CarbonMarketService {
       winnerId: highestBid.bidderId,
       winningBid: highestBid.bidAmount,
     };
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async autoCloseAuctions() {
+    this.logger.log('⏰ Kiểm tra các phiên đấu giá hết hạn...');
+
+    const expiredAuctions = await this.prisma.carbonMarketListing.findMany({
+      where: {
+        type: 'AUCTION',
+        status: 'OPEN',
+        endTime: { lt: new Date() },
+      },
+    });
+
+    for (const auction of expiredAuctions) {
+      // Tìm bid cao nhất
+      const topBid = await this.prisma.bid.findFirst({
+        where: { auctionId: auction.id },
+        orderBy: { bidAmount: 'desc' },
+      });
+
+      if (topBid) {
+        // Cập nhật winner + đóng auction
+        await this.prisma.carbonMarketListing.update({
+          where: { id: auction.id },
+          data: {
+            status: 'SOLD',
+            pricePerCredit: topBid.bidAmount,
+            buyerId: topBid.bidderId,
+          },
+        });
+
+        this.logger.log(
+          `✅ Đấu giá #${auction.id} đã đóng — người thắng: ${topBid.bidderId}, giá: ${topBid.bidAmount}`,
+        );
+      } else {
+        // Không có bid → hủy đấu giá
+        await this.prisma.carbonMarketListing.update({
+          where: { id: auction.id },
+          data: { status: 'CANCELLED' },
+        });
+        this.logger.log(`⚠️ Đấu giá #${auction.id} không có ai tham gia → hủy`);
+      }
+    }
   }
 }

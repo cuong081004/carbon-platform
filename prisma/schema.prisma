@@ -58,6 +58,7 @@ model CarbonWallet {
 model CarbonMarketListing {
   id            Int       @id @default(autoincrement())
   sellerId      Int
+  buyerId       Int?
   type          String    // 'FIXED' | 'AUCTION'
   amount        Float     // số tín chỉ rao bán
   pricePerCredit Float    // giá 1 tín chỉ carbon

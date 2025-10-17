@@ -6,8 +6,20 @@ import { VehicleTripModule } from './vehicle-trip/vehicle-trip.module';
 import { CarbonCreditModule } from './carbon-credit/carbon-credit.module';
 import { CarbonWalletModule } from './carbon-wallet/carbon-wallet.module';
 import { CarbonMarketModule } from './carbon-market/carbon-market.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { StatisticsModule } from './statistics/statistics.module';
 
 @Module({
-  imports: [VehicleTripModule, AuthModule, UserModule, PrismaModule, CarbonCreditModule, CarbonWalletModule, CarbonMarketModule],
+  imports: [
+    VehicleTripModule,
+    AuthModule,
+    UserModule,
+    PrismaModule,
+    CarbonCreditModule,
+    CarbonWalletModule,
+    CarbonMarketModule,
+    ScheduleModule.forRoot(),
+    StatisticsModule,
+  ],
 })
 export class AppModule {}
