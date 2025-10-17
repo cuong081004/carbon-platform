@@ -155,4 +155,16 @@ export class CarbonMarketController {
   async closeAuction(@Param('auctionId') id: string) {
     return this.marketService.closeAuction(Number(id));
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('suggest-price')
+  async suggestPrice(@Req() req) {
+    const userId = req.user.id;
+    return this.marketService.suggestPricePerCredit(userId);
+  }
+
+  @Get('suggestion-history/:userId')
+  async getHistory(@Param('userId') userId: string) {
+    return this.marketService.getSuggestionHistory(Number(userId));
+  }
 }

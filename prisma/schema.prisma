@@ -18,6 +18,7 @@ model User {
   carbonWallets CarbonWallet[]
   carbonMarketListings CarbonMarketListing[]
   bids            Bid[]
+  priceSuggestionHistorys PriceSuggestionHistory[]
 }
 
 model VehicleTrip {
@@ -81,4 +82,17 @@ model Bid {
 
   auction    CarbonMarketListing @relation(fields: [auctionId], references: [id])
   bidder     User                @relation(fields: [bidderId], references: [id])
+}
+
+model PriceSuggestionHistory {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  suggestedPrice  Float
+  trend           String
+  avgMarket       Float
+  avgUserCo2      Float
+  slope           Float
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
 }

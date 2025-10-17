@@ -230,4 +230,98 @@ export class CarbonMarketService {
       }
     }
   }
+
+  // 🔮 Hàm gợi ý giá dựa trên dữ liệu + xu hướng (ML giả lập)
+  async suggestPricePerCredit(userId: number) {
+    // 1️⃣ Lấy dữ liệu giao dịch gần đây
+    const history = await this.prisma.carbonMarketListing.findMany({
+      where: { status: 'SOLD' },
+      take: 50,
+      orderBy: { createdAt: 'asc' },
+      select: { pricePerCredit: true, createdAt: true },
+    });
+
+    if (!history.length) {
+      return {
+        suggestedPrice: 10,
+        reason: 'Thiếu dữ liệu thị trường, dùng giá mặc định 10.',
+      };
+    }
+
+    // 2️⃣ Chuyển dữ liệu sang mảng [x, y]
+    // x là index thời gian (0, 1, 2, ...), y là giá
+    const x = history.map((_, i) => i);
+    const y = history.map((h) => h.pricePerCredit);
+
+    // 3️⃣ Tính Linear Regression (giả lập)
+    const n = x.length;
+    const sumX = x.reduce((a, b) => a + b, 0);
+    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumXY = x.reduce((a, b, i) => a + b * y[i], 0);
+    const sumXX = x.reduce((a, b) => a + b * b, 0);
+
+    // y = a*x + b
+    const a = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const b = (sumY - a * sumX) / n;
+
+    // 4️⃣ Dự đoán giá “ngày hôm nay”
+    const predicted = a * n + b; // tiếp theo sau dữ liệu hiện có
+
+    // 5️⃣ Trung bình thực tế
+    const avgMarket = sumY / n;
+
+    // 6️⃣ Dữ liệu CO₂ của user để điều chỉnh
+    const userCredits = await this.prisma.carbonCredit.findMany({
+      where: { ownerId: userId },
+      select: { co2SavedKg: true },
+    });
+
+    const avgUserCo2 =
+      userCredits.length > 0
+        ? userCredits.reduce((sum, c) => sum + c.co2SavedKg, 0) /
+          userCredits.length
+        : 10;
+
+    // 7️⃣ Áp dụng điều chỉnh AI + CO₂
+    let suggested = predicted * (avgUserCo2 / 10);
+
+    // Giới hạn để tránh outlier
+    if (suggested < 5) suggested = 5;
+    if (suggested > 100) suggested = 100;
+
+    // 8️⃣ Tính xu hướng
+    const trend =
+      a > 0 ? '📈 Giá thị trường đang tăng' : '📉 Giá thị trường đang giảm';
+
+    // 💾 Lưu lịch sử gợi ý
+    await this.prisma.priceSuggestionHistory.create({
+      data: {
+        userId,
+        suggestedPrice: suggested,
+        trend,
+        avgMarket,
+        avgUserCo2,
+        slope: a,
+      },
+    });
+
+    return {
+      suggestedPrice: Number(suggested.toFixed(2)),
+      trend,
+      predictedNext: Number(predicted.toFixed(2)),
+      avgMarket: Number(avgMarket.toFixed(2)),
+      avgUserCo2: Number(avgUserCo2.toFixed(2)),
+      slope: Number(a.toFixed(4)),
+      reason:
+        'AI giả lập (linear regression) dự đoán dựa trên xu hướng thị trường và hiệu suất CO₂ người dùng.',
+    };
+  }
+
+  async getSuggestionHistory(userId: number) {
+    return this.prisma.priceSuggestionHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  }
 }

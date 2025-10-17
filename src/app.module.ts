@@ -8,6 +8,7 @@ import { CarbonWalletModule } from './carbon-wallet/carbon-wallet.module';
 import { CarbonMarketModule } from './carbon-market/carbon-market.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { StatisticsModule } from './statistics/statistics.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StatisticsModule } from './statistics/statistics.module';
     CarbonMarketModule,
     ScheduleModule.forRoot(),
     StatisticsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
