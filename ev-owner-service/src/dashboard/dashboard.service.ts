@@ -42,4 +42,27 @@ export class DashboardService {
       },
     });
   }
+
+  async getSummary(ownerId: number) {
+    const trips = await this.prisma.vehicleTrip.findMany({
+      where: { ownerId },
+      include: { carbonCredits: true },
+    });
+
+    const totalCO2 = trips.reduce((sum, t) => sum + (t.co2SavedKg || 0), 0);
+    const totalCredits = trips.reduce(
+      (sum, t) => sum + (t.carbonCredits?.[0]?.creditsEarned || 0),
+      0,
+    );
+
+    // tổng doanh thu = tổng creditsEarned * giá bán trung bình (giả lập)
+    const averagePricePerCredit = 25; // USD/credit (giả lập)
+    const totalRevenue = totalCredits * averagePricePerCredit;
+
+    return {
+      totalCO2,
+      totalCredits,
+      totalRevenue,
+    };
+  }
 }

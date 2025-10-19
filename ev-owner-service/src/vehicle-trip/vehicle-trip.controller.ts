@@ -5,7 +5,8 @@ import {
   UseGuards,
   Request,
   Get,
-  Query,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { VehicleTripService } from './vehicle-trip.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -15,35 +16,34 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('VehicleTrip')
 @Controller('vehicle-trip')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 export class VehicleTripController {
   constructor(private readonly vehicleTripService: VehicleTripService) {}
 
-  // Bảo vệ route bằng JWT
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  /** 🟢 Tạo hành trình mới */
   @Post()
   async createTrip(@Request() req, @Body() dto: CreateVehicleTripDto) {
-    // req.user được tạo bởi JwtStrategy.validate() — nên có id, email
     const ownerId = req.user?.id;
     if (!ownerId) {
-      // an toàn: nếu không tìm thấy id, trả lỗi 401/403 (Nest sẽ handle)
-      throw new Error('User not found in token');
+      throw new Error('Không xác định được chủ sở hữu từ token');
     }
     return this.vehicleTripService.createTrip(ownerId, dto);
   }
 
-  // Lấy trips của owner hiện tại (bảo vệ)
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @Get('me')
+  /** 🟢 Lấy tất cả hành trình của user đăng nhập */
+  @Get('by-owner')
   async getMyTrips(@Request() req) {
-    const ownerId = req.user.id;
+    const ownerId = req.user?.id;
+    if (!ownerId) {
+      throw new Error('Không xác định được user từ token');
+    }
     return this.vehicleTripService.findAllByOwner(ownerId);
   }
 
-  // (tuỳ chọn) lấy theo query param ownerId (admin)
-  @Get('by-owner')
-  getTrips(@Query('ownerId') ownerId: string) {
-    return this.vehicleTripService.findAllByOwner(Number(ownerId));
+  /** 🗑️ Xoá hành trình của user hiện tại */
+  @Delete(':id')
+  async deleteTrip(@Request() req, @Param('id') id: string) {
+    const ownerId = req.user?.id;
+    return this.vehicleTripService.deleteTrip(ownerId, Number(id));
   }
 }

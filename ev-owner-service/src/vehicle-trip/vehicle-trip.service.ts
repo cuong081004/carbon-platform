@@ -31,11 +31,7 @@ export class VehicleTripService {
     });
 
     // Ghi nhận tín chỉ carbon
-    await this.carbonCreditService.recordCredit(
-      ownerId,
-      trip.id,
-      co2SavedKg!,
-    );
+    await this.carbonCreditService.recordCredit(ownerId, trip.id, co2SavedKg!);
 
     return trip;
   }
@@ -43,6 +39,11 @@ export class VehicleTripService {
   async findAllByOwner(ownerId: number) {
     return this.prisma.vehicleTrip.findMany({
       where: { ownerId },
+      include: {
+        carbonCredits: {
+          select: { creditsEarned: true },
+        },
+      },
       orderBy: { date: 'desc' },
     });
   }
@@ -55,5 +56,27 @@ export class VehicleTripService {
     // bạn có thể thay bằng công thức phức tạp hơn
     const approxSavedKg = distanceKm * 0.12;
     return Math.max(0, approxSavedKg);
+  }
+
+  async deleteTrip(ownerId: number, tripId: number) {
+    const trip = await this.prisma.vehicleTrip.findUnique({
+      where: { id: tripId },
+    });
+
+    if (!trip || trip.ownerId !== ownerId) {
+      throw new Error('Không tìm thấy hành trình hoặc không có quyền xoá');
+    }
+
+    // Xoá CarbonCredit nếu có
+    await this.prisma.carbonCredit.deleteMany({
+      where: { tripId: trip.id },
+    });
+
+    // Xoá hành trình
+    await this.prisma.vehicleTrip.delete({
+      where: { id: tripId },
+    });
+
+    return { message: 'Đã xoá hành trình thành công', tripId };
   }
 }
