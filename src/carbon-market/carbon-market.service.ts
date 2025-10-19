@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentService } from '../payment/payment.service';
 
 @Injectable()
 export class CarbonMarketService {
   private readonly logger = new Logger(CarbonMarketService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private paymentService: PaymentService,
+  ) {}
 
   // 🏷️ Niêm yết fixed-price
   async createFixedListing(
@@ -32,29 +36,69 @@ export class CarbonMarketService {
     });
   }
 
-  // 💰 Mua tín chỉ
   async buyListing(buyerId: number, listingId: number) {
     const listing = await this.prisma.carbonMarketListing.findUnique({
       where: { id: listingId },
     });
+
     if (!listing || listing.status !== 'OPEN') {
-      throw new BadRequestException('Listing không tồn tại hoặc đã bán');
+      throw new Error('Listing not found or not available for purchase');
     }
 
-    // Chuyển tín chỉ cho buyer
-    await this.prisma.carbonWallet.upsert({
+    const totalPrice = listing.amount * listing.pricePerCredit;
+
+    const buyerWallet = await this.prisma.carbonWallet.findUnique({
       where: { ownerId: buyerId },
-      update: { balance: { increment: listing.amount } },
-      create: { ownerId: buyerId, balance: listing.amount },
     });
 
-    // Cập nhật trạng thái listing
-    await this.prisma.carbonMarketListing.update({
-      where: { id: listingId },
-      data: { status: 'SOLD' },
-    });
+    // Nếu buyer chưa có ví thì tạo ví trống
+    const buyerBalance = buyerWallet?.balanceFiat || 0;
 
-    return { message: 'Mua thành công', listingId };
+    if (buyerBalance >= totalPrice) {
+      // ✅ Đủ tiền — giao dịch ngay
+      await this.prisma.$transaction([
+        // Trừ tiền buyer
+        this.prisma.carbonWallet.update({
+          where: { ownerId: buyerId },
+          data: { balanceFiat: { decrement: totalPrice } },
+        }),
+
+        // Cộng tiền seller
+        this.prisma.carbonWallet.upsert({
+          where: { ownerId: listing.sellerId },
+          update: { balanceFiat: { increment: totalPrice } },
+          create: { ownerId: listing.sellerId, balanceFiat: totalPrice },
+        }),
+
+        // Buyer nhận tín chỉ carbon
+        this.prisma.carbonWallet.upsert({
+          where: { ownerId: buyerId },
+          update: { balanceCarbon: { increment: listing.amount } },
+          create: { ownerId: buyerId, balanceCarbon: listing.amount },
+        }),
+
+        // Cập nhật listing sang SOLD
+        this.prisma.carbonMarketListing.update({
+          where: { id: listingId },
+          data: { status: 'SOLD', buyerId },
+        }),
+      ]);
+
+      return { message: '✅ Purchase completed successfully.' };
+    } else {
+      // ❌ Không đủ tiền — tạo PaymentIntent để thanh toán sau
+      const pi = await this.paymentService.createPaymentIntent(
+        buyerId,
+        totalPrice,
+        { type: 'BUY', listingId },
+      );
+
+      return {
+        message: '💳 Insufficient funds. Payment required.',
+        requiresPayment: true,
+        paymentIntent: pi,
+      };
+    }
   }
 
   // 📋 Lấy danh sách listing đang mở

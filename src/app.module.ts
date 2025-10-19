@@ -9,6 +9,8 @@ import { CarbonMarketModule } from './carbon-market/carbon-market.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { StatisticsModule } from './statistics/statistics.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PaymentModule } from './payment/payment.module';
+import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ScheduleModule.forRoot(),
     StatisticsModule,
     DashboardModule,
+    PaymentModule,
+    AdminDashboardModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,19 @@
 // create-user.dto.ts
-import { IsNotEmpty, IsString, IsEmail, MinLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEmail,
+  MinLength,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
+
+export enum Role {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+  VERIFIER = 'VERIFIER',
+  BUYER = 'BUYER',
+}
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -15,4 +29,8 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6, { message: 'Password must be at least 6 characters' })
   password: string;
+
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 }

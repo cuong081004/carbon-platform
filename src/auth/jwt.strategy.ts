@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     // nếu token chỉ có email, ta fetch user từ DB
     const user = await this.prisma.user.findUnique({
       where: { email: payload.email },
-      select: { id: true, email: true, username: true },
+      select: { id: true, email: true, username: true, role: true },
     });
     // trả về object sẽ gắn vào req.user
     return user; // { id, email, username } hoặc null (Nest sẽ block nếu null/undefined)
